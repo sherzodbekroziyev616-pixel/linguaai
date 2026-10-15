@@ -1,0 +1,14 @@
+FROM node:20-alpine AS frontend-build
+
+WORKDIR /app/frontend
+COPY frontend/ ./
+RUN npm install && npm run build
+
+FROM python:3.11-slim
+
+WORKDIR /app/backend
+COPY backend/ ./
+RUN pip install --no-cache-dir -r requirements.txt
+COPY --from=frontend-build /app/frontend/dist /app/frontend/dist
+
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
