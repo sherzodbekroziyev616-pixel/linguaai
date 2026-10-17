@@ -51,19 +51,20 @@ Base.metadata.create_all(bind=engine)
 ensure_schema_columns(Base)
 
 app = FastAPI(title=APP_NAME)
-logger = logging.getLogger(__name__)
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
-FRONTEND_DIST = PROJECT_ROOT / 'frontend' / 'dist'
-FRONTEND_INDEX = FRONTEND_DIST / 'index.html'
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=CORS_ORIGINS,
+    allow_origins=CORS_ORIGINS or ['*'],
     allow_origin_regex=CORS_ORIGIN_REGEX,
     allow_credentials=True,
     allow_methods=['*'],
     allow_headers=['*'],
 )
+
+logger = logging.getLogger(__name__)
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+FRONTEND_DIST = PROJECT_ROOT / 'frontend' / 'dist'
+FRONTEND_INDEX = FRONTEND_DIST / 'index.html'
 
 
 @app.exception_handler(SQLAlchemyError)
