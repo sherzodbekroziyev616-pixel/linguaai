@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 
 from . import models
 from .auth import create_access_token, get_current_user_id, get_optional_user_id, get_password_hash, verify_password
-from .config import APP_NAME, CORS_ORIGINS, CORS_ORIGIN_REGEX
+from .config import APP_NAME
 from .database import Base, engine, ensure_schema_columns, get_db
 from .schemas import (
     AIChatRequest,
@@ -54,9 +54,8 @@ app = FastAPI(title=APP_NAME)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=CORS_ORIGINS or ['*'],
-    allow_origin_regex=CORS_ORIGIN_REGEX,
-    allow_credentials=True,
+    allow_origins=['*'],
+    allow_credentials=False,
     allow_methods=['*'],
     allow_headers=['*'],
 )
