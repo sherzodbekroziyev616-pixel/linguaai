@@ -1,8 +1,9 @@
-﻿import { type Dispatch, type SetStateAction, useEffect, useState } from 'react'
+import { type Dispatch, type SetStateAction, useEffect, useRef, useState } from 'react'
 import { BrowserRouter, NavLink, Route, Routes, useNavigate } from 'react-router-dom'
+import { emitUiChime, playUiChime, playUiClick } from './utils/sound'
 import './App.css'
 
-type ThemeMode = 'light' | 'dark'
+type ThemeMode = 'dark-teal' | 'ocean-teal'
 type LanguageCode = 'uz' | 'en' | 'ko' | 'tr'
 type SourceLanguageCode = LanguageCode | 'auto'
 type TranslationStyle = 'Oddiy' | 'Rasmiy' | 'Professional'
@@ -34,10 +35,10 @@ type AuthUser = {
 }
 
 const LANGUAGE_ITEMS = [
-  { code: 'uz', label: 'O‘zbekcha' },
-  { code: 'en', label: 'English' },
-  { code: 'ko', label: '한국어' },
-  { code: 'tr', label: 'Türkçe' },
+  { code: 'uz', label: 'O‘zbekcha', flag: '🇺🇿' },
+  { code: 'en', label: 'English', flag: '🇬🇧' },
+  { code: 'ko', label: '한국어', flag: '🇰🇷' },
+  { code: 'tr', label: 'Türkçe', flag: '🇹🇷' },
 ] as const
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL
@@ -85,12 +86,16 @@ async function apiRequest<T>(path: string, options: RequestInit & { token?: stri
 }
 
 function App() {
-  const [theme, setTheme] = useLocalStorage<ThemeMode>('linguaai-theme', 'light')
+  const [theme, setTheme] = useLocalStorage<ThemeMode>('linguaai-theme', 'dark-teal')
 
   useEffect(() => {
+    if (theme !== 'dark-teal' && theme !== 'ocean-teal') {
+      setTheme('dark-teal')
+      return
+    }
     document.documentElement.setAttribute('data-theme', theme)
     document.body.setAttribute('data-theme', theme)
-  }, [theme])
+  }, [theme, setTheme])
 
   return (
     <BrowserRouter>
@@ -102,20 +107,42 @@ function App() {
 function AppLayout({ theme, setTheme }: { theme: ThemeMode; setTheme: Dispatch<SetStateAction<ThemeMode>> }) {
   const [token, setToken] = useLocalStorage<string>('linguaai-token', '')
   const [user, setUser] = useLocalStorage<AuthUser | null>('linguaai-user', null)
+  const [soundEnabled, setSoundEnabled] = useLocalStorage('linguaai-sound-enabled', true)
   const [guest, setGuest] = useState(() => window.sessionStorage.getItem('linguaai-guest') === 'true')
   const [recoveryCode, setRecoveryCode] = useState('')
   const navigate = useNavigate()
+  const soundEnabledRef = useRef(soundEnabled)
+
+  useEffect(() => {
+    soundEnabledRef.current = soundEnabled
+  }, [soundEnabled, soundEnabledRef])
+
+  useEffect(() => {
+    const handleClick = (event: MouseEvent) => {
+      if (!soundEnabledRef.current || !(event.target instanceof Element)) return
+      if (event.target.closest('button, a, select, [role="tab"]')) playUiClick()
+    }
+    const handleChime = () => {
+      if (soundEnabledRef.current) playUiChime()
+    }
+    document.addEventListener('click', handleClick)
+    window.addEventListener('linguaai:chime', handleChime)
+    return () => {
+      document.removeEventListener('click', handleClick)
+      window.removeEventListener('linguaai:chime', handleChime)
+    }
+  }, [soundEnabledRef])
 
   const navItems = [
-    { to: '/', label: 'Bosh sahifa' },
-    { to: '/tarjimon', label: 'Tarjimon' },
+    { to: '/', label: 'Bosh sahifa', icon: '🏠' },
+    { to: '/tarjimon', label: 'Tarjimon', icon: '🌐' },
     ...(token ? [
-      { to: '/tarix', label: 'Tarix' },
-      { to: '/sevimlilar', label: 'Sevimlilar' },
-      { to: '/assistant', label: 'AI yordamchi' },
+      { to: '/assistant', label: 'AI yordamchi', icon: '🤖' },
+      { to: '/tarix', label: 'Tarix', icon: '🕒' },
+      { to: '/sevimlilar', label: 'Sevimlilar', icon: '⭐' },
     ] : []),
-    ...(guest || token ? [{ to: '/sozlamalar', label: 'Sozlamalar' }] : []),
-    ...(token ? [{ to: '/profil', label: 'Profil' }] : []),
+    ...(guest || token ? [{ to: '/sozlamalar', label: 'Sozlamalar', icon: '⚙️' }] : []),
+    ...(token ? [{ to: '/profil', label: 'Profil', icon: '👤' }] : []),
   ]
 
   const signOut = () => {
@@ -140,8 +167,8 @@ function AppLayout({ theme, setTheme }: { theme: ThemeMode; setTheme: Dispatch<S
         {(guest || token) && (
           <nav className="nav" aria-label="Asosiy navigatsiya">
             {navItems.map((item) => (
-              <NavLink key={item.to} to={item.to} className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
-                {item.label}
+              <NavLink key={item.to} to={item.to} aria-label={item.label} className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
+                <span aria-hidden="true">{item.icon}</span> {item.label}
               </NavLink>
             ))}
           </nav>
@@ -161,11 +188,21 @@ function AppLayout({ theme, setTheme }: { theme: ThemeMode; setTheme: Dispatch<S
           )}
           <button
             type="button"
-            className="header-theme-toggle"
-            aria-label={theme === 'light' ? 'Qorong‘i mavzuni yoqish' : 'Yorug‘ mavzuni yoqish'}
-            onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
+            className={`sound-toggle ${soundEnabled ? 'is-on' : ''}`}
+            aria-pressed={soundEnabled}
+            aria-label={soundEnabled ? 'Ovozli effektlarni o‘chirish' : 'Ovozli effektlarni yoqish'}
+            onClick={() => setSoundEnabled(!soundEnabled)}
           >
-            {theme === 'light' ? '☾' : '☀'}
+            <span aria-hidden="true">{soundEnabled ? '🔊' : '🔇'}</span>
+            <span className="sound-toggle-label">Ovozli effektlar</span>
+          </button>
+          <button
+            type="button"
+            className="header-theme-toggle"
+            aria-label={theme === 'dark-teal' ? 'Moviy Okean mavzusiga o‘tish' : 'Chuqur Zumrad mavzusiga o‘tish'}
+            onClick={() => setTheme(theme === 'dark-teal' ? 'ocean-teal' : 'dark-teal')}
+          >
+            {theme === 'dark-teal' ? '◈' : '✦'}
           </button>
           {(token || guest) && <button type="button" className="secondary-button header-signout" onClick={signOut}>{token ? 'Chiqish' : 'Kirish'}</button>}
         </div>
@@ -280,6 +317,7 @@ function TranslationPage({ token }: { token: string }) {
   const [explanationLoading, setExplanationLoading] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [swapped, setSwapped] = useState(false)
 
   const handleTranslate = async () => {
     setLoading(true)
@@ -303,6 +341,7 @@ function TranslationPage({ token }: { token: string }) {
         target_lang: targetLang,
         style,
       } satisfies LatestTranslation))
+      emitUiChime()
       if (token) {
         await apiRequest('/translations', {
           method: 'POST',
@@ -348,6 +387,17 @@ function TranslationPage({ token }: { token: string }) {
     if (sourceLang === 'auto') return
     setSourceLang(targetLang)
     setTargetLang(sourceLang)
+    setSwapped(!swapped)
+  }
+
+  const copyResult = async () => {
+    if (!result) return
+    try {
+      await navigator.clipboard.writeText(result)
+      emitUiChime()
+    } catch {
+      setError('Nusxalash amalga oshmadi. Matnni qo‘lda belgilang va nusxalang.')
+    }
   }
 
   return (
@@ -359,63 +409,72 @@ function TranslationPage({ token }: { token: string }) {
         </div>
 
         <div className="language-controls">
-          <label>
-            <span>Manba tili</span>
-            <select
-              value={sourceLang}
-              onChange={(event) => {
-                setSourceLang(event.target.value as SourceLanguageCode)
-                setDetectedSourceLang(null)
-              }}
-            >
-              <option value="auto">Avtomatik aniqlash</option>
+          <div className="language-field">
+            <span className="language-control-heading">Manba tili <b className="language-select-badge">{sourceLang === 'auto' ? '✨ Avtomatik' : `${LANGUAGE_ITEMS.find((lang) => lang.code === sourceLang)?.flag} ${sourceLang.toUpperCase()}`}</b></span>
+            <div className="language-chip-row" role="group" aria-label="Manba tili">
+              <button type="button" className={`language-chip ${sourceLang === 'auto' ? 'active' : ''}`} aria-pressed={sourceLang === 'auto'} onClick={() => { setSourceLang('auto'); setDetectedSourceLang(null) }}>✨ Avtomatik</button>
               {LANGUAGE_ITEMS.map((lang) => (
-                <option key={lang.code} value={lang.code}>{lang.label}</option>
+                <button key={lang.code} type="button" className={`language-chip ${sourceLang === lang.code ? 'active' : ''}`} aria-pressed={sourceLang === lang.code} onClick={() => { setSourceLang(lang.code); setDetectedSourceLang(null) }}>{lang.flag} {lang.code.toUpperCase()} {lang.label}</button>
               ))}
-            </select>
-          </label>
+            </div>
+          </div>
 
-          <button type="button" className="swap-button" onClick={handleSwap} aria-label="Tillarni almashtirish" disabled={sourceLang === 'auto'}>
+          <button type="button" className={`swap-button ${swapped ? 'swapped' : ''}`} onClick={handleSwap} aria-label="Tillarni almashtirish" disabled={sourceLang === 'auto'}>
             ⇄
           </button>
 
-          <label>
-            <span>Maqsad tili</span>
-            <select
-              value={targetLang}
-              onChange={(event) => {
-                setTargetLang(event.target.value as LanguageCode)
-                setDetectedSourceLang(null)
-              }}
-            >
+          <div className="language-field">
+            <span className="language-control-heading">Maqsad tili <b className="language-select-badge">{LANGUAGE_ITEMS.find((lang) => lang.code === targetLang)?.flag} {targetLang.toUpperCase()}</b></span>
+            <div className="language-chip-row" role="group" aria-label="Maqsad tili">
               {LANGUAGE_ITEMS.map((lang) => (
-                <option key={lang.code} value={lang.code}>{lang.label}</option>
+                <button key={lang.code} type="button" className={`language-chip ${targetLang === lang.code ? 'active' : ''}`} aria-pressed={targetLang === lang.code} onClick={() => { setTargetLang(lang.code); setDetectedSourceLang(null) }}>{lang.flag} {lang.code.toUpperCase()} {lang.label}</button>
               ))}
-            </select>
-          </label>
+            </div>
+          </div>
         </div>
 
-        <label className="style-control">
+        <div className="style-picker" role="group" aria-label="Tarjima uslubi">
           <span>Tarjima uslubi</span>
-          <select value={style} onChange={(event) => setStyle(event.target.value as TranslationStyle)}>
-            <option value="Oddiy">Oddiy</option>
-            <option value="Rasmiy">Rasmiy</option>
-            <option value="Professional">Professional</option>
-          </select>
-        </label>
-
+          <div className="style-cards">
+            {([
+              ['Oddiy', '💬'],
+              ['Rasmiy', '🏛️'],
+              ['Professional', '💼'],
+            ] as const).map(([label, icon]) => (
+              <button
+                key={label}
+                type="button"
+                className={`style-card ${style === label ? 'active' : ''}`}
+                aria-pressed={style === label}
+                onClick={() => setStyle(label)}
+              >
+                <span aria-hidden="true">{icon}</span>{label}
+              </button>
+            ))}
+          </div>
+        </div>
         <textarea
           value={text}
           onChange={(event) => setText(event.target.value)}
+          maxLength={5000}
           placeholder="Matn kiriting..."
           aria-label="Tarjima qilinadigan matn"
         />
+        <div className="character-meter" aria-label={`${text.length} / 5000 belgi`}>
+          <span><span style={{ width: `${Math.min(text.length / 50, 100)}%` }} /></span>
+          <small>{text.length} / 5000</small>
+        </div>
+        <div className="quick-phrases" aria-label="Namunaviy iboralar">
+          {['Assalomu alaykum, yaxshimisiz?', 'Rahmat, juda yordam berdingiz.', 'Bugun ob-havo qanday?'].map((phrase) => (
+            <button key={phrase} type="button" onClick={() => setText(phrase)}>{phrase}</button>
+          ))}
+        </div>
 
         <div className="panel-actions">
           <button type="button" className="primary-button" onClick={handleTranslate} disabled={loading}>
             {loading ? 'Tarjima qilinmoqda...' : 'Tarjima qilish'}
           </button>
-          <button type="button" className="secondary-button" onClick={() => void navigator.clipboard.writeText(result)}>
+          <button type="button" className="secondary-button" onClick={() => void copyResult()} disabled={!result}>
             Nusxalash
           </button>
         </div>
@@ -608,11 +667,11 @@ function SettingsPage({ theme, setTheme }: { theme: ThemeMode; setTheme: Dispatc
       <div className="setting-row">
         <div>
           <strong>Mavzu rejimi</strong>
-          <p>Yengil va qorong‘i rejim o‘rtasida tanlang.</p>
+          <p>Ikki yorqin qoramtir teal rang palitrasidan birini tanlang.</p>
         </div>
         <div className="theme-toggle" aria-label="Mavzu rejimini tanlang">
-          <button type="button" className={theme === 'light' ? 'active' : ''} onClick={() => setTheme('light')}>Yengil</button>
-          <button type="button" className={theme === 'dark' ? 'active' : ''} onClick={() => setTheme('dark')}>Qorong‘i</button>
+          <button type="button" className={theme === 'dark-teal' ? 'active' : ''} onClick={() => setTheme('dark-teal')}>Chuqur Zumrad</button>
+          <button type="button" className={theme === 'ocean-teal' ? 'active' : ''} onClick={() => setTheme('ocean-teal')}>Moviy Okean</button>
         </div>
       </div>
     </section>
@@ -668,6 +727,12 @@ function AuthPage({
   const [confirmPassword, setConfirmPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const passwordStrength = [
+    password.length >= 8,
+    /[A-Z]/.test(password) && /[a-z]/.test(password),
+    /\d/.test(password),
+    /[^A-Za-z0-9]/.test(password),
+  ].filter(Boolean).length
 
   const handleSubmit = async () => {
     setLoading(true)
@@ -720,41 +785,72 @@ function AuthPage({
   }
 
   return (
-    <section className="content-panel auth-panel">
-      <div className="auth-heading">
-        <span className="eyebrow">LinguaAI</span>
-        <h1>{mode === 'login' ? 'Xush kelibsiz' : mode === 'register' ? 'Hisob yarating' : 'Parolni tiklash'}</h1>
-        <p>Davom etish uchun hisobingizga kiring yoki yangi hisob yarating.</p>
-      </div>
-      <div className="auth-switch">
-        <button type="button" className={mode === 'login' ? 'active' : ''} onClick={() => { setMode('login'); setError('') }}>Kirish</button>
-        <button type="button" className={mode === 'register' ? 'active' : ''} onClick={() => { setMode('register'); setError('') }}>Hisob yaratish</button>
-        <button type="button" className={mode === 'reset' ? 'active' : ''} onClick={() => { setMode('reset'); setError('') }}>Parolni unutdingizmi?</button>
-      </div>
+    <section className="auth-showcase">
+      <aside className="auth-showcase-panel">
+        <div className="auth-brand-lockup">
+          <span className="brand-mark">L</span>
+          <div><strong>LinguaAI</strong><small>by Xayrullayeva Gulasal</small></div>
+        </div>
+        <span className="eyebrow">Tillar orasidagi masofani yo‘qoting</span>
+        <h1>Sun'iy intellekt yordamida <span>4 ta tilda mukammal muloqot qiling</span></h1>
+        <div className="auth-preview-cards">
+          <article className="auth-preview-card"><span>⚡</span><div><strong>Lahzali va aniq AI tarjima</strong><small>O‘zbek, Ingliz, Koreys, Turk tillari</small></div></article>
+          <article className="auth-preview-card"><span>🧠</span><div><strong>5 rejimli AI Til Ustozi</strong><small>Grammatika, uslub va transkripsiya</small></div></article>
+          <article className="auth-preview-card"><span>🛡️</span><div><strong>Bir martalik maxfiy tiklash kodi</strong><small>Xavfsiz hisob va shaxsiy lug‘at</small></div></article>
+        </div>
+        <div className="auth-live-demo">
+          <div className="demo-heading"><span className="status-dot" /> Jonli tarjima namoyishi <span>AI ACTIVE</span></div>
+          <p className="demo-source">“Assalomu alaykum, yaxshimisiz?”</p>
+          <div className="demo-translations">
+            <span><b>EN</b> Hello, how are you?</span>
+            <span><b>KO</b> 안녕하세요, 잘 지내세요?</span>
+            <span><b>TR</b> Selamün aleyküm, nasılsınız?</span>
+          </div>
+        </div>
+      </aside>
 
-      <label>
-        <span>Taxallus</span>
-        <input value={nickname} onChange={(event) => setNickname(event.target.value)} autoComplete="username" placeholder="Taxallusingiz" />
-      </label>
+      <section className="content-panel auth-panel">
+        <div className="auth-heading">
+          <span className="eyebrow">{mode === 'reset' ? 'HISOBNI TIKLASH' : 'XAVFSIZ KIRISH'}</span>
+          <h2>{mode === 'login' ? 'Xush kelibsiz' : mode === 'register' ? 'Hisob yarating' : 'Parolni tiklash'}</h2>
+          <p>Davom etish uchun quyidagi ma’lumotlarni kiriting.</p>
+        </div>
+        <div className="auth-switch">
+          <button type="button" aria-label="Kirish" className={mode === 'login' ? 'active' : ''} onClick={() => { setMode('login'); setError('') }}>🔑 Kirish</button>
+          <button type="button" aria-label="Hisob yaratish" className={mode === 'register' ? 'active' : ''} onClick={() => { setMode('register'); setError('') }}>✨ Hisob yaratish</button>
+          <button type="button" aria-label="Parolni unutdingizmi?" className={mode === 'reset' ? 'active' : ''} onClick={() => { setMode('reset'); setError('') }}>🛡️ Parolni tiklash</button>
+        </div>
 
-      {mode === 'reset' && (
-        <label>
-          <span>Tiklash kodi</span>
-          <input value={recoveryCode} onChange={(event) => setRecoveryCodeInput(event.target.value.toUpperCase())} placeholder="LNG-XXXX-XXXX" autoComplete="off" />
+        <label className="auth-field">
+          <span>Taxallus</span>
+          <span className="auth-input-wrap"><span aria-hidden="true">♙</span><input value={nickname} onChange={(event) => setNickname(event.target.value)} autoComplete="username" placeholder="Taxallusingiz" /></span>
         </label>
-      )}
 
-      <PasswordField label={mode === 'reset' ? 'Yangi parol' : 'Parol'} value={password} onChange={setPassword} autoComplete={mode === 'login' ? 'current-password' : 'new-password'} />
-      {mode !== 'login' && (
-        <PasswordField label="Parolni tasdiqlash" value={confirmPassword} onChange={setConfirmPassword} autoComplete="new-password" />
-      )}
+        {mode === 'reset' && (
+          <label className="auth-field">
+            <span>Tiklash kodi</span>
+            <span className="auth-input-wrap"><span aria-hidden="true">⌘</span><input value={recoveryCode} onChange={(event) => setRecoveryCodeInput(event.target.value.toUpperCase())} placeholder="LNG-XXXX-XXXX" autoComplete="off" /></span>
+          </label>
+        )}
 
-      {error && <div className="status error">{error}</div>}
+        <PasswordField label={mode === 'reset' ? 'Yangi parol' : 'Parol'} value={password} onChange={setPassword} autoComplete={mode === 'login' ? 'current-password' : 'new-password'} />
+        {mode === 'register' && (
+          <div className="password-strength" aria-label={`Parol mustahkamligi: ${passwordStrength} / 4`}>
+            <div>{[1, 2, 3, 4].map((level) => <span key={level} className={passwordStrength >= level ? `strength-${passwordStrength}` : ''} />)}</div>
+            <small>{passwordStrength < 2 ? 'Zaif parol' : passwordStrength < 4 ? 'O‘rtacha parol' : 'Mustahkam parol'}</small>
+          </div>
+        )}
+        {mode !== 'login' && (
+          <PasswordField label="Parolni tasdiqlash" value={confirmPassword} onChange={setConfirmPassword} autoComplete="new-password" />
+        )}
 
-      <button type="button" className="primary-button" onClick={handleSubmit} disabled={loading}>
-        {loading ? 'Iltimos, kuting...' : mode === 'login' ? 'Kirish' : mode === 'register' ? 'Hisob yaratish' : 'Parolni tiklash'}
-      </button>
-      <button type="button" className="guest-button" onClick={onGuest}>Mehmon sifatida davom etish</button>
+        {error && <div className="status error">{error}</div>}
+
+        <button type="button" className="primary-button auth-submit" onClick={handleSubmit} disabled={loading}>
+          {loading ? 'Iltimos, kuting...' : mode === 'login' ? 'Kirish' : mode === 'register' ? 'Hisob yaratish' : 'Parolni tiklash'}
+        </button>
+        <button type="button" className="guest-button" aria-label="Mehmon sifatida davom etish" onClick={onGuest}>🚀 Mehmon sifatida darhol sinab ko‘rish</button>
+      </section>
     </section>
   )
 }
@@ -782,6 +878,7 @@ function PasswordField({
           autoComplete={autoComplete}
           placeholder="Kamida 6 ta belgi"
         />
+        <span className="password-lock" aria-hidden="true">🔒</span>
         <button
           type="button"
           className="password-visibility"
@@ -804,6 +901,7 @@ function RecoveryCodeModal({ code, onClose }: { code: string; onClose: () => voi
       await navigator.clipboard.writeText(code)
       setCopied(true)
       setCopyError('')
+      emitUiChime()
     } catch {
       setCopyError('Nusxalash amalga oshmadi. Kodni qo‘lda saqlab oling.')
     }

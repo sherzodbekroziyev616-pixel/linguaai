@@ -21,11 +21,21 @@ describe('LinguaAI app', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Mehmon sifatida davom etish' }))
     fireEvent.click(screen.getByRole('link', { name: 'Tarjimon' }))
 
-    expect(screen.getByRole('option', { name: 'Avtomatik aniqlash' })).toBeInTheDocument()
-    expect(screen.getByRole('option', { name: 'Oddiy' })).toBeInTheDocument()
-    expect(screen.getByRole('option', { name: 'Rasmiy' })).toBeInTheDocument()
-    expect(screen.getByRole('option', { name: 'Professional' })).toBeInTheDocument()
+    expect(screen.getByRole('group', { name: 'Manba tili' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Avtomatik/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Oddiy' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Rasmiy' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Professional' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Tillarni almashtirish' })).toHaveTextContent('⇄')
+  })
+
+  it('starts in the deep emerald theme and allows theme and sound toggles', () => {
+    render(<App />)
+    expect(document.documentElement).toHaveAttribute('data-theme', 'dark-teal')
+    fireEvent.click(screen.getByRole('button', { name: 'Moviy Okean mavzusiga o‘tish' }))
+    expect(document.documentElement).toHaveAttribute('data-theme', 'ocean-teal')
+    fireEvent.click(screen.getByRole('button', { name: 'Ovozli effektlarni o‘chirish' }))
+    expect(screen.getByRole('button', { name: 'Ovozli effektlarni yoqish' })).toHaveAttribute('aria-pressed', 'false')
   })
 
   it('supports showing and hiding passwords', () => {

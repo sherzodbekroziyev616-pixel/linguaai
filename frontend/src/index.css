@@ -1,5 +1,5 @@
-﻿:root {
-  color-scheme: light;
+:root {
+  color-scheme: dark;
   font-family: Inter, 'Segoe UI', sans-serif;
   line-height: 1.5;
   font-weight: 400;
@@ -9,13 +9,28 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-html[data-theme='dark'] {
+html[data-theme='dark-teal'],
+body[data-theme='dark-teal'] {
   color-scheme: dark;
 }
 
-body {
+html,
+body,
+#root {
+  min-height: 100%;
   margin: 0;
 }
 
-img, svg { max-width: 100%; display: block; }
-#root { min-height: 100vh; }
+body {
+  min-width: 320px;
+}
+
+img,
+svg {
+  display: block;
+  max-width: 100%;
+}
+
+#root {
+  min-height: 100vh;
+}
