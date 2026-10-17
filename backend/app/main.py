@@ -112,7 +112,7 @@ def _commit_or_raise_validation(
         ) from error
 
 
-@app.get('/')
+@app.get('/', response_model=None)
 def read_root():
     if FRONTEND_INDEX.is_file():
         return FileResponse(FRONTEND_INDEX)
@@ -483,7 +483,7 @@ if (FRONTEND_DIST / 'assets').is_dir():
     app.mount('/assets', StaticFiles(directory=FRONTEND_DIST / 'assets'), name='frontend-assets')
 
 
-@app.get('/{full_path:path}', include_in_schema=False)
+@app.get('/{full_path:path}', response_model=None, include_in_schema=False)
 def serve_frontend(full_path: str):
     if full_path == 'api' or full_path.startswith('api/'):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='API yo‘li topilmadi.')
