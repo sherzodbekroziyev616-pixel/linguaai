@@ -35,7 +35,7 @@ The root `render.yaml` provisions the web service and PostgreSQL database. Rende
 2. Set the unsynchronized `GEMINI_API_KEY` environment variable if Gemini is enabled. The translation fallback remains available when the key/provider is unavailable.
 3. Deploy. The Render service uses `/api/health` as its health check.
 
-For local production-serving verification, run `bash build.sh` from the repository root, then start Uvicorn from the repository root. Configure `VITE_API_BASE_URL` only when the API is intentionally hosted on a separate origin.
+For local production-serving verification, run `bash build.sh` from the repository root, then start Uvicorn from the repository root. The frontend uses relative `/api` requests so the SPA and API share the same origin in Docker and other single-service deployments.
 
 ### 3) Environment configuration
 

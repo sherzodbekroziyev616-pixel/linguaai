@@ -1,9 +1,10 @@
-import { beforeEach, describe, expect, it } from 'vitest'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import App from './App'
 
 describe('LinguaAI app', () => {
   beforeEach(() => {
+    vi.restoreAllMocks()
     window.localStorage.clear()
     window.sessionStorage.clear()
   })
@@ -14,6 +15,26 @@ describe('LinguaAI app', () => {
     expect(screen.getByRole('button', { name: 'Hisob yaratish' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Parolni unutdingizmi?' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Mehmon sifatida davom etish' })).toBeInTheDocument()
+  })
+
+  it('sends authentication requests to the same-origin API path', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({
+      access_token: 'test-token',
+      user: {
+        id: 1,
+        nickname: 'Gulasal',
+        is_active: true,
+        created_at: '2026-10-18T00:00:00',
+      },
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } }))
+    render(<App />)
+    fireEvent.change(screen.getByPlaceholderText('Taxallusingiz'), { target: { value: 'Gulasal' } })
+    fireEvent.change(screen.getByPlaceholderText('Kamida 6 ta belgi'), { target: { value: 'secret123' } })
+    fireEvent.click(document.querySelector('.auth-submit')!)
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith('/api/v1/auth/login', expect.any(Object))
+    })
   })
 
   it('exposes automatic detection and all translation styles', () => {

@@ -30,6 +30,23 @@ def test_healthcheck():
     assert response.json()['status'] == 'ok'
 
 
+def test_cors_preflight_allows_authorized_frontend_requests():
+    response = client.options(
+        '/api/v1/auth/login',
+        headers={
+            'Origin': 'https://linguaai.vercel.app',
+            'Access-Control-Request-Method': 'POST',
+            'Access-Control-Request-Headers': 'authorization,content-type',
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.headers['access-control-allow-origin'] == '*'
+    assert 'authorization' in response.headers['access-control-allow-headers'].lower()
+    assert 'content-type' in response.headers['access-control-allow-headers'].lower()
+    assert 'access-control-allow-credentials' not in response.headers
+
+
 def test_register_and_login():
     payload = {
         'email': 'user@example.com',
@@ -253,11 +270,14 @@ def test_frontend_spa_routes_are_served_when_build_exists():
         pytest.skip('Frontend distribution has not been built')
 
     root_response = client.get('/')
+    static_index_response = client.get('/static/index.html')
     deep_link_response = client.get('/assistant')
     unknown_api_response = client.get('/api/v1/not-a-route')
 
     assert root_response.status_code == 200
     assert 'text/html' in root_response.headers['content-type']
+    assert static_index_response.status_code == 200
+    assert 'text/html' in static_index_response.headers['content-type']
     assert deep_link_response.status_code == 200
     assert 'text/html' in deep_link_response.headers['content-type']
     assert unknown_api_response.status_code == 404

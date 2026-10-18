@@ -479,6 +479,9 @@ def get_ai_history(db: Session = Depends(get_db), user_id: int = Depends(get_cur
     return {'messages': [{'role': item.role, 'content': item.content} for item in items]}
 
 
+if FRONTEND_DIST.is_dir():
+    app.mount('/static', StaticFiles(directory=FRONTEND_DIST), name='frontend-static')
+
 if (FRONTEND_DIST / 'assets').is_dir():
     app.mount('/assets', StaticFiles(directory=FRONTEND_DIST / 'assets'), name='frontend-assets')
 

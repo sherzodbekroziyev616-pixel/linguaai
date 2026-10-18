@@ -41,8 +41,7 @@ const LANGUAGE_ITEMS = [
   { code: 'tr', label: 'Türkçe', flag: '🇹🇷' },
 ] as const
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL
-  ?? 'https://linguaai-or6y.onrender.com/api'
+const API_BASE = '/api'
 
 function useLocalStorage<T>(key: string, initialValue: T) {
   const [value, setValue] = useState<T>(() => {
